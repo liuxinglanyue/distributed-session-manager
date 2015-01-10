@@ -25,6 +25,11 @@ dependencies {
   testCompile group: 'org.apache.tomcat', name: 'tomcat-coyote', version: '7.0.27'
 }
 
+task createJavaProject << {
+	    sourceSets*.java.srcDirs*.each { it.mkdirs() }
+        sourceSets*.resources.srcDirs*.each { it.mkdirs() }
+}
+
 task javadocJar(type: Jar, dependsOn: javadoc) {
   classifier = 'javadoc'
   from 'build/docs/javadoc'
@@ -84,7 +89,6 @@ uploadArchives {
             name 'Jiao JianFeng'
             email 'liuxinglanyue@gmail.com'
             url 'https://github.com/liuxinglanyue'
-            blog 'http://javagoo.tk'
           }
         }
       }
