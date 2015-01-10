@@ -1,9 +1,11 @@
 package com.liuxinglanyue.session.redis;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.catalina.LifecycleException;
@@ -15,7 +17,10 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.JedisSentinelPool;
+import redis.clients.jedis.JedisShardInfo;
 import redis.clients.jedis.Protocol;
+import redis.clients.jedis.ShardedJedis;
+import redis.clients.jedis.ShardedJedisPool;
 import redis.clients.util.Pool;
 
 import com.liuxinglanyue.session.AbstractSessionManager;
@@ -30,9 +35,18 @@ public class RedisSessionManager extends AbstractSessionManager {
 	protected String password = null;
 	protected int timeout = Protocol.DEFAULT_TIMEOUT;
 	protected String sentinelMaster = null;
-	Set<String> sentinelSet = null;
+	protected Set<String> sentinelSet = null;
+
+	/**
+	 * 不可用
+	 */
+	@Deprecated
+	protected String serverList = "127.0.0.1:6379";
 
 	protected Pool<Jedis> connectionPool;
+	
+	@Deprecated
+	protected Pool<ShardedJedis> shardedPool;
 	protected JedisPoolConfig connectionPoolConfig = new JedisPoolConfig();
 
 	public final static String name = "RedisSentinelSessionManager";
@@ -86,6 +100,23 @@ public class RedisSessionManager extends AbstractSessionManager {
 				} else {
 					throw new LifecycleException(
 							"Error configuring Redis Sentinel connection pool: expected both `sentinelMaster` and `sentiels` to be configured");
+				}
+			} else if (null != serverList && !"".equals(serverList)) {
+				String[] servers = serverList.split(",");
+				List<JedisShardInfo> shards = new ArrayList<JedisShardInfo>(servers.length);
+				for (int i = 0; i < servers.length; i++) {
+					String[] hostAndPort = servers[i].split(":");
+					JedisShardInfo shardInfo = new JedisShardInfo(hostAndPort[0], Integer.parseInt(hostAndPort[1]), getTimeout());
+					if (hostAndPort.length == 3) {
+						shardInfo.setPassword(hostAndPort[2]);
+					}
+					shards.add(shardInfo);
+				}
+				if (shards.size() == 1) {
+					connectionPool = new JedisPool(this.connectionPoolConfig, shards.get(0).getHost(), shards.get(0).getPort(), shards.get(0)
+							.getTimeout(), shards.get(0).getPassword());
+				} else {
+					shardedPool = new ShardedJedisPool(this.connectionPoolConfig, shards);
 				}
 			} else {
 				connectionPool = new JedisPool(this.connectionPoolConfig, getHost(), getPort(), getTimeout(), getPassword());
@@ -294,6 +325,10 @@ public class RedisSessionManager extends AbstractSessionManager {
 
 		String[] sentinelArray = sentinels.split(",");
 		this.sentinelSet = new HashSet<String>(Arrays.asList(sentinelArray));
+	}
+
+	public void setServerList(String serverList) {
+		this.serverList = serverList;
 	}
 
 	public Set<String> getSentinelSet() {

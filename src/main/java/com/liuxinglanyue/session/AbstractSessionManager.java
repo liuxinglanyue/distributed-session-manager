@@ -83,56 +83,6 @@ public abstract class AbstractSessionManager extends ManagerBase implements Life
 		this.sessionPersistPoliciesSet = policySet;
 	}
 
-	public boolean getSaveOnChange() {
-		return this.sessionPersistPoliciesSet.contains(SessionPersistPolicy.SAVE_ON_CHANGE);
-	}
-
-	public boolean getAlwaysSaveAfterRequest() {
-		return this.sessionPersistPoliciesSet.contains(SessionPersistPolicy.ALWAYS_SAVE_AFTER_REQUEST);
-	}
-
-	public void setSerializationStrategyClass(String strategy) {
-		this.serializationStrategyClass = strategy;
-	}
-
-	/*
-	 * public void setDebug(String debug) { this.debugEnabled =
-	 * Boolean.parseBoolean(debug); }
-	 */
-
-	@Override
-	public int getRejectedSessions() {
-		return 0;
-	}
-
-	public void setRejectedSessions(int i) {
-	}
-
-	@Override
-	public void load() throws ClassNotFoundException, IOException {
-
-	}
-
-	@Override
-	public void unload() throws IOException {
-
-	}
-
-	@Override
-	public void addLifecycleListener(LifecycleListener listener) {
-		lifecycle.addLifecycleListener(listener);
-	}
-
-	@Override
-	public LifecycleListener[] findLifecycleListeners() {
-		return lifecycle.findLifecycleListeners();
-	}
-
-	@Override
-	public void removeLifecycleListener(LifecycleListener listener) {
-		lifecycle.removeLifecycleListener(listener);
-	}
-
 	@Override
 	protected synchronized void startInternal() throws LifecycleException {
 		super.startInternal();
@@ -427,6 +377,56 @@ public abstract class AbstractSessionManager extends ManagerBase implements Life
 			classLoader = loader.getClassLoader();
 		}
 		serializer.setClassLoader(classLoader);
+	}
+	
+	public boolean getSaveOnChange() {
+		return this.sessionPersistPoliciesSet.contains(SessionPersistPolicy.SAVE_ON_CHANGE);
+	}
+
+	public boolean getAlwaysSaveAfterRequest() {
+		return this.sessionPersistPoliciesSet.contains(SessionPersistPolicy.ALWAYS_SAVE_AFTER_REQUEST);
+	}
+
+	public void setSerializationStrategyClass(String strategy) {
+		this.serializationStrategyClass = strategy;
+	}
+
+	/*
+	 * public void setDebug(String debug) { this.debugEnabled =
+	 * Boolean.parseBoolean(debug); }
+	 */
+
+	@Override
+	public int getRejectedSessions() {
+		return 0;
+	}
+
+	public void setRejectedSessions(int i) {
+	}
+
+	@Override
+	public void load() throws ClassNotFoundException, IOException {
+
+	}
+
+	@Override
+	public void unload() throws IOException {
+
+	}
+
+	@Override
+	public void addLifecycleListener(LifecycleListener listener) {
+		lifecycle.addLifecycleListener(listener);
+	}
+
+	@Override
+	public LifecycleListener[] findLifecycleListeners() {
+		return lifecycle.findLifecycleListeners();
+	}
+
+	@Override
+	public void removeLifecycleListener(LifecycleListener listener) {
+		lifecycle.removeLifecycleListener(listener);
 	}
 
 }
