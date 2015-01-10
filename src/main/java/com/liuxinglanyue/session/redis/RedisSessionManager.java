@@ -41,7 +41,7 @@ public class RedisSessionManager extends AbstractSessionManager {
 	 * 不可用
 	 */
 	@Deprecated
-	protected String serverList = "127.0.0.1:6379";
+	protected String serverList;
 
 	protected Pool<Jedis> connectionPool;
 	
@@ -49,7 +49,7 @@ public class RedisSessionManager extends AbstractSessionManager {
 	protected Pool<ShardedJedis> shardedPool;
 	protected JedisPoolConfig connectionPoolConfig = new JedisPoolConfig();
 
-	public final static String name = "RedisSentinelSessionManager";
+	public final static String name = "RedisSessionManager";
 
 	protected String generateCustomSessionId(String requestedSessionId) {
 		Jedis jedis = null;
