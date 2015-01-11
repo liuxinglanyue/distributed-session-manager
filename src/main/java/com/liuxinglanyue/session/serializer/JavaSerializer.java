@@ -4,6 +4,7 @@ import org.apache.catalina.util.CustomObjectInputStream;
 
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Map;
 import java.io.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -25,7 +26,7 @@ public class JavaSerializer implements Serializer {
 	}
 
 	public byte[] attributesFrom(CustomSession session) throws IOException {
-		HashMap<String, Object> attributes = new HashMap<String, Object>();
+		Map<String, Object> attributes = new HashMap<String, Object>();
 		for (Enumeration<String> enumerator = session.getAttributeNames(); enumerator.hasMoreElements();) {
 			String key = enumerator.nextElement();
 			attributes.put(key, session.getAttribute(key));
