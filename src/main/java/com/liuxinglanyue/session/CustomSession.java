@@ -2,7 +2,6 @@ package com.liuxinglanyue.session;
 
 import java.io.IOException;
 import java.security.Principal;
-import java.util.HashMap;
 
 import org.apache.catalina.Manager;
 import org.apache.catalina.session.StandardSession;
@@ -33,18 +32,11 @@ public class CustomSession extends StandardSession {
 		manualDirtyTrackingAttributeKey = key;
 	}
 
-	protected HashMap<String, Object> changedAttributes;
-
 	public Boolean isDirty() {
-		return dirty || !changedAttributes.isEmpty();
-	}
-
-	public HashMap<String, Object> getChangedAttributes() {
-		return changedAttributes;
+		return dirty;
 	}
 
 	public void resetDirtyTracking() {
-		changedAttributes = new HashMap<>();
 		dirty = false;
 	}
 
@@ -68,7 +60,7 @@ public class CustomSession extends StandardSession {
 					logger.error("Error saving session on setAttribute (triggered by saveOnChange=true): " + ex.getMessage());
 				}
 			} else {
-				changedAttributes.put(key, value);
+				dirty = true;
 			}
 		}
 	}
