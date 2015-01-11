@@ -13,16 +13,16 @@ public class CustomSession extends StandardSession {
 
 	private static final long serialVersionUID = 1L;
 
-	protected Boolean dirty;
+	protected boolean dirty;
 
-	protected static Boolean manualDirtyTrackingSupportEnabled = false;
+	protected static boolean manualDirtyTrackingSupportEnabled = false;
 
 	public CustomSession(Manager manager) {
 		super(manager);
 		resetDirtyTracking();
 	}
 
-	public static void setManualDirtyTrackingSupportEnabled(Boolean enabled) {
+	public static void setManualDirtyTrackingSupportEnabled(boolean enabled) {
 		manualDirtyTrackingSupportEnabled = enabled;
 	}
 
@@ -32,7 +32,7 @@ public class CustomSession extends StandardSession {
 		manualDirtyTrackingAttributeKey = key;
 	}
 
-	public Boolean isDirty() {
+	public boolean isDirty() {
 		return dirty;
 	}
 
