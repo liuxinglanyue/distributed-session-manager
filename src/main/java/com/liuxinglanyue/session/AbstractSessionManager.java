@@ -18,24 +18,11 @@ import org.apache.catalina.util.LifecycleSupport;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
+import com.liuxinglanyue.session.config.SessionPersistPolicy;
 import com.liuxinglanyue.session.serializer.Serializer;
 
 public abstract class AbstractSessionManager extends ManagerBase implements Lifecycle {
 	private final Log log = LogFactory.getLog(AbstractSessionManager.class);
-
-	enum SessionPersistPolicy {
-		DEFAULT, SAVE_ON_CHANGE, ALWAYS_SAVE_AFTER_REQUEST;
-
-		static SessionPersistPolicy fromName(String name) {
-			for (SessionPersistPolicy policy : SessionPersistPolicy.values()) {
-				if (policy.name().equalsIgnoreCase(name)) {
-					return policy;
-				}
-			}
-			throw new IllegalArgumentException("Invalid session persist policy [" + name + "]. Must be one of "
-					+ Arrays.asList(SessionPersistPolicy.values()) + ".");
-		}
-	}
 
 	protected byte[] NULL_SESSION = "null".getBytes();
 
@@ -55,33 +42,31 @@ public abstract class AbstractSessionManager extends ManagerBase implements Life
 
 	protected LifecycleSupport lifecycle = new LifecycleSupport(this);
 
+	@Override
 	public abstract Session createEmptySession();
 
 	protected abstract void initializeDatabaseConnection() throws LifecycleException;
 
 	protected abstract void connectionDestroy();
+	
+	protected abstract String generateCustomSessionId(String requestedSessionId);
+	
+	public abstract String dbSet(Object db, byte[] key, byte[] value);
 
-	public String getSessionPersistPolicies() {
-		StringBuilder policies = new StringBuilder();
-		for (Iterator<SessionPersistPolicy> iter = this.sessionPersistPoliciesSet.iterator(); iter.hasNext();) {
-			SessionPersistPolicy policy = iter.next();
-			policies.append(policy.name());
-			if (iter.hasNext()) {
-				policies.append(",");
-			}
-		}
-		return policies.toString();
-	}
+	public abstract long dbExpire(Object db, byte[] key, int seconds);
 
-	public void setSessionPersistPolicies(String sessionPersistPolicies) {
-		String[] policyArray = sessionPersistPolicies.split(",");
-		EnumSet<SessionPersistPolicy> policySet = EnumSet.of(SessionPersistPolicy.DEFAULT);
-		for (String policyName : policyArray) {
-			SessionPersistPolicy policy = SessionPersistPolicy.fromName(policyName);
-			policySet.add(policy);
-		}
-		this.sessionPersistPoliciesSet = policySet;
-	}
+	public abstract void clear();
+
+	public abstract int getSize() throws IOException;
+
+	public abstract String[] keys() throws IOException;
+
+	public abstract byte[] loadSessionDataFromDB(String id) throws IOException;
+	
+	public abstract void save(Session session, boolean forceSave) throws IOException;
+	
+	@Override
+	public abstract void remove(Session session, boolean update);
 
 	@Override
 	protected synchronized void startInternal() throws LifecycleException {
@@ -134,8 +119,6 @@ public abstract class AbstractSessionManager extends ManagerBase implements Life
 		super.stopInternal();
 	}
 
-	protected abstract String generateCustomSessionId(String requestedSessionId);
-
 	@Override
 	public Session createSession(String requestedSessionId) {
 		generateCustomSessionId(requestedSessionId);
@@ -182,7 +165,7 @@ public abstract class AbstractSessionManager extends ManagerBase implements Life
 			throw new RuntimeException("Unable to add to session manager store.", ex);
 		}
 	}
-
+	
 	@Override
 	public Session findSession(String id) throws IOException {
 		CustomSession session = null;
@@ -214,18 +197,14 @@ public abstract class AbstractSessionManager extends ManagerBase implements Life
 		return session;
 	}
 
-	public abstract String dbSet(Object db, byte[] key, byte[] value);
 
-	public abstract long dbExpire(Object db, byte[] key, int seconds);
-
-	public abstract void clear();
-
-	public abstract int getSize() throws IOException;
-
-	public abstract String[] keys() throws IOException;
-
-	public abstract byte[] loadSessionDataFromDB(String id) throws IOException;
-
+	/**
+	 * 反序列化 得到 session & session attributes
+	 * @param id
+	 * @param data
+	 * @return
+	 * @throws IOException
+	 */
 	public DeserializedSessionContainer sessionFromSerializedData(String id, byte[] data) throws IOException {
 		log.trace("Deserializing session " + id + " from DB");
 
@@ -268,8 +247,14 @@ public abstract class AbstractSessionManager extends ManagerBase implements Life
 		save(session, false);
 	}
 
-	public abstract void save(Session session, boolean forceSave) throws IOException;
-
+	/**
+	 * 报错session & session attributes
+	 * @param db
+	 * @param session
+	 * @param forceSave
+	 * @return
+	 * @throws IOException
+	 */
 	protected boolean saveInternal(Object db, Session session, boolean forceSave) throws IOException {
 		boolean error = true;
 
@@ -332,10 +317,7 @@ public abstract class AbstractSessionManager extends ManagerBase implements Life
 		remove(session, false);
 	}
 
-	@Override
-	public abstract void remove(Session session, boolean update);
-
-	public void afterRequest() {
+	/*public void afterRequest() {
 		CustomSession customSession = currentSession.get();
 		if (customSession != null) {
 			try {
@@ -355,12 +337,48 @@ public abstract class AbstractSessionManager extends ManagerBase implements Life
 				log.trace("Session removed from ThreadLocal :" + customSession.getIdInternal());
 			}
 		}
-	}
+	}*/
 
 	@Override
 	public void processExpires() {
 	}
+	
+	/**
+	 * get session策略
+	 * @return
+	 */
+	public String getSessionPersistPolicies() {
+		StringBuilder policies = new StringBuilder();
+		for (Iterator<SessionPersistPolicy> iter = this.sessionPersistPoliciesSet.iterator(); iter.hasNext();) {
+			SessionPersistPolicy policy = iter.next();
+			policies.append(policy.name());
+			if (iter.hasNext()) {
+				policies.append(",");
+			}
+		}
+		return policies.toString();
+	}
 
+	/**
+	 * set session策略
+	 * @param sessionPersistPolicies
+	 */
+	public void setSessionPersistPolicies(String sessionPersistPolicies) {
+		String[] policyArray = sessionPersistPolicies.split(",");
+		EnumSet<SessionPersistPolicy> policySet = EnumSet.of(SessionPersistPolicy.DEFAULT);
+		for (String policyName : policyArray) {
+			SessionPersistPolicy policy = SessionPersistPolicy.fromName(policyName);
+			policySet.add(policy);
+		}
+		this.sessionPersistPoliciesSet = policySet;
+	}
+
+	/**
+	 * 初始化序列化
+	 * @throws ClassNotFoundException
+	 * @throws IllegalAccessException
+	 * @throws InstantiationException
+	 */
 	private void initializeSerializer() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
 		log.info("Attempting to use serializer :" + serializationStrategyClass);
 		serializer = (Serializer) Class.forName(serializationStrategyClass).newInstance();
@@ -379,14 +397,26 @@ public abstract class AbstractSessionManager extends ManagerBase implements Life
 		serializer.setClassLoader(classLoader);
 	}
 	
+	/**
+	 * 每次改变 都save
+	 * @return
+	 */
 	public boolean getSaveOnChange() {
 		return this.sessionPersistPoliciesSet.contains(SessionPersistPolicy.SAVE_ON_CHANGE);
 	}
 
+	/**
+	 * request后总是save
+	 * @return
+	 */
 	public boolean getAlwaysSaveAfterRequest() {
 		return this.sessionPersistPoliciesSet.contains(SessionPersistPolicy.ALWAYS_SAVE_AFTER_REQUEST);
 	}
 
+	/**
+	 * set 序列化 class
+	 * @param strategy
+	 */
 	public void setSerializationStrategyClass(String strategy) {
 		this.serializationStrategyClass = strategy;
 	}
