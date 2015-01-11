@@ -51,8 +51,8 @@ public class CustomSession extends StandardSession {
 		super.setAttribute(key, value);
 
 		if ((value != null || oldValue != null)
-				&& (value == null && oldValue != null || oldValue == null && value != null || !value.getClass().isInstance(oldValue) || !value
-						.equals(oldValue))) {
+				&& (value == null && oldValue != null || oldValue == null && value != null || !value.getClass().isInstance(oldValue) || !value.equals(oldValue))) {
+			
 			if (this.manager instanceof AbstractSessionManager && ((AbstractSessionManager) this.manager).getSaveOnChange()) {
 				try {
 					((AbstractSessionManager) this.manager).save(this, true);
