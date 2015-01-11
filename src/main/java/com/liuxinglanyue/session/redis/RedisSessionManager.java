@@ -129,7 +129,7 @@ public class RedisSessionManager extends AbstractSessionManager {
 
 	public void save(Session session, boolean forceSave) throws IOException {
 		Jedis jedis = null;
-		Boolean error = true;
+		boolean error = true;
 
 		try {
 			jedis = acquireConnection();
@@ -145,7 +145,7 @@ public class RedisSessionManager extends AbstractSessionManager {
 
 	public byte[] loadSessionDataFromDB(String id) throws IOException {
 		Jedis jedis = null;
-		Boolean error = true;
+		boolean error = true;
 
 		try {
 			log.trace("Attempting to load session " + id + " from Redis");
@@ -182,7 +182,7 @@ public class RedisSessionManager extends AbstractSessionManager {
 
 	public void remove(Session session, boolean update) {
 		Jedis jedis = null;
-		Boolean error = true;
+		boolean error = true;
 
 		log.trace("Removing session ID : " + session.getId());
 
@@ -199,7 +199,7 @@ public class RedisSessionManager extends AbstractSessionManager {
 
 	public void clear() {
 		Jedis jedis = null;
-		Boolean error = true;
+		boolean error = true;
 		try {
 			jedis = acquireConnection();
 			jedis.flushDB();
@@ -213,7 +213,7 @@ public class RedisSessionManager extends AbstractSessionManager {
 
 	public int getSize() throws IOException {
 		Jedis jedis = null;
-		Boolean error = true;
+		boolean error = true;
 		try {
 			jedis = acquireConnection();
 			int size = jedis.dbSize().intValue();
@@ -228,7 +228,7 @@ public class RedisSessionManager extends AbstractSessionManager {
 
 	public String[] keys() throws IOException {
 		Jedis jedis = null;
-		Boolean error = true;
+		boolean error = true;
 		try {
 			jedis = acquireConnection();
 			Set<String> keySet = jedis.keys("*");
