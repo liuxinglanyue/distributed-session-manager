@@ -35,7 +35,7 @@ public class RedisSession extends StandardSession {
 	 */
 	@Override
 	public void access() {
-		if (_manager.debugEnabled) {
+		if (_manager.debug) {
 			log.info("id=" + this.id);
 		}
 		super.access();
@@ -56,22 +56,19 @@ public class RedisSession extends StandardSession {
 	public Object getAttribute(String name) {
 		Object value = super.getAttribute(name);
 
-		if (name.startsWith("javax.zkoss.zk.ui.Session")) {
+		if (name.startsWith("javax.zkoss.zk.ui.Session") || !_manager.isStarted()) {
 			return value;
 		}
 
-		if (!_manager.isStarted()) {
-			return value;
-		}
 		try {
-			if (_manager.stickySessionEnabled) {
+			if (_manager.stickySession) {
 				if (value == null) {
 					byte[] bytesValue = _manager.jedisHget(RedisManager.TOMCAT_SESSION_PREFIX + this.id, name);
 					if (bytesValue == null) {
-						return value;
+						return null;
 					}
 
-					if (_manager.debugEnabled) {
+					if (_manager.debug) {
 						log.info("id=" + this.id + ",name=" + name + ",strValue=" + new String(bytesValue, Protocol.CHARSET));
 					}
 
@@ -88,7 +85,7 @@ public class RedisSession extends StandardSession {
 					return value;
 				}
 
-				if (_manager.debugEnabled) {
+				if (_manager.debug) {
 					log.info("id=" + this.id + ",name=" + name + ",strValue=" + new String(bytesValue, Protocol.CHARSET));
 				}
 
@@ -104,23 +101,17 @@ public class RedisSession extends StandardSession {
 	public void setAttribute(String name, Object value) {
 		super.setAttribute(name, value);
 
-		if (value == null) {
+		if (value == null || name.startsWith("javax.zkoss.zk.ui.Session") || !_manager.isStarted()) {
 			return;
 		}
 
-		if (name.startsWith("javax.zkoss.zk.ui.Session")) {
-			return;
-		}
-
-		if (!_manager.isStarted()) {
-			return;
-		}
 		try {
 			byte[] bytesValue = KryoSerializer.write(value);
-			if (_manager.debugEnabled) {
+			if (_manager.debug) {
 				log.info("id=" + this.id + ",name=" + name + ",strValue=" + new String(bytesValue, Protocol.CHARSET));
 			}
 			_manager.jedisHset(RedisManager.TOMCAT_SESSION_PREFIX + this.id, name, bytesValue);
+			
 		} catch (Exception ex) {
 			log.error("error:name=" + name + ";value=" + value, ex);
 		}
@@ -128,7 +119,7 @@ public class RedisSession extends StandardSession {
 
 	@Override
 	protected void removeAttributeInternal(String name, boolean notify) {
-		if (_manager.debugEnabled) {
+		if (_manager.debug) {
 			log.info("id=" + this.id + ",name=" + name + ",notify=" + notify);
 		}
 		super.removeAttributeInternal(name, notify);
@@ -145,7 +136,7 @@ public class RedisSession extends StandardSession {
 
 	@Override
 	public void expire(boolean notify) {
-		if (_manager.debugEnabled) {
+		if (_manager.debug) {
 			log.info("id=" + this.id + ",notify=" + notify);
 		}
 		super.expire(notify); // 在expire里就会清空当前session的所有属性

@@ -23,18 +23,27 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
 
 
 public class RedisManager extends StandardManager {
-	private final Log log = LogFactory.getLog(RedisManager.class);
+	private final Log log = LogFactory.getLog(RedisManager.class); // must not be static
 
 	public static final String TOMCAT_SESSION_PREFIX = "TS:";
 	protected final static String NAME = RedisManager.class.getSimpleName();
     private final static String INFO = NAME + "/1.0";
     
+    //分片连接池
 	static ShardedJedisPool _shardedPool = null;
+	//连接池
 	static JedisPool _pool = null;
+	//redis配置
 	protected JedisPoolConfig connectionPoolConfig = new JedisPoolConfig();
-	// ->---------------属性----------------------
-	boolean debugEnabled = false;
-	private String debug = "false"; // 是否打开调试模式
+	
+	
+	boolean debug = false;
+	//参见nginx
+	boolean stickySession = true;
+	protected String serverlist = "127.0.0.1:6379"; // 用逗号(,)分隔的"ip:port,ip:port,ip:port"列表
+	protected String socketTO = "6000";
+	
+	protected byte[] NULL_SESSION = "null".getBytes();
 	
 	@Override
     public String getInfo() {
@@ -46,77 +55,7 @@ public class RedisManager extends StandardManager {
         return NAME;
     }
 
-	public String getDebug() {
-		return debug;
-	}
-
-	public void setDebug(String debug) {
-		this.debug = debug;
-	}
-
-	boolean stickySessionEnabled = true;
-	private String stickySession = "true"; // 是否打开会话粘连模式
-
-	public String getStickySession() {
-		return stickySession;
-	}
-
-	public void setStickySession(String stickySession) {
-		this.stickySession = stickySession;
-	}
-
-	protected String serverlist = "127.0.0.1:6379"; // 用逗号(,)分隔的"ip:port"列表
-
-	/**
-	 * the list of all cache servers;用逗号(,)分隔的"ip:port"列表
-	 * 
-	 * @return
-	 */
-	public String getServerlist() {
-		return serverlist;
-	}
-
-	/**
-	 * the list of all cache servers;用逗号(,)分隔的"ip:port"列表
-	 * 
-	 * @param serverlist
-	 */
-	public void setServerlist(String serverlist) {
-		this.serverlist = serverlist;
-	}
-
-	protected String minConn = "5";
-
-	public String getMinConn() {
-		return minConn;
-	}
-
-	public void setMinConn(String minConn) {
-		this.minConn = minConn;
-	}
-
-	protected String maxConn = "100";
-
-	public String getMaxConn() {
-		return maxConn;
-	}
-
-	public void setMaxConn(String maxConn) {
-		this.maxConn = maxConn;
-	}
-
-	protected String socketTO = "6000";
-
-	public String getSocketTO() {
-		return socketTO;
-	}
-
-	public void setSocketTO(String socketTO) {
-		this.socketTO = socketTO;
-	}
-
-	// <----------------属性----------------------
-
+    
 	public RedisManager() {
 		super();
 		initRedisPoolConfig();
@@ -131,12 +70,11 @@ public class RedisManager extends StandardManager {
 		if (session == null && id != null) { // 说明session有可能在另一个节点上
 			try {
 				boolean idExists = jedisExists(TOMCAT_SESSION_PREFIX + id);
-				if (idExists) { // Redis里有Session ID
-					if (this.debugEnabled) {
+				if (idExists) {
+					if (this.debug) {
 						log.info("cached found and local not! id=" + id);
 					}
 
-					// ->
 					RedisSession redisSession = new RedisSession(this);
 					redisSession.setNew(false);
 					redisSession.setValid(true);
@@ -148,7 +86,6 @@ public class RedisManager extends StandardManager {
 					sessionCounter++;
 
 					return redisSession;
-					// <-
 				}
 			} catch (Exception ex) {
 				log.error("error:", ex);
@@ -166,7 +103,7 @@ public class RedisManager extends StandardManager {
 		}
 
 		sessionId = session.getId();
-		if (this.debugEnabled) {
+		if (this.debug) {
 			log.info("id=" + sessionId);
 		}
 
@@ -183,7 +120,7 @@ public class RedisManager extends StandardManager {
 
 	@Override
 	public void remove(Session session) {
-		if (this.debugEnabled) {
+		if (this.debug) {
 			log.info("id=" + session.getId());
 		}
 		super.remove(session);
@@ -205,9 +142,6 @@ public class RedisManager extends StandardManager {
 	@Override
 	protected void startInternal() throws LifecycleException {
 		super.startInternal();
-
-		debugEnabled = Boolean.parseBoolean(debug);
-		stickySessionEnabled = Boolean.parseBoolean(stickySession);
 
 		synchronized (RedisManager.class) {
 			try {
@@ -283,12 +217,26 @@ public class RedisManager extends StandardManager {
 			super.stopInternal();
 		}
 	}
+	
+	protected String generateSessionId() {
+        String result = null;
+
+        do {
+            if (result != null) {
+                duplicates++;
+            }
+
+            result = sessionIdGenerator.generateSessionId();
+            
+        } while (sessions.containsKey(result) || jedisExists(result));
+        
+        return result;
+    }
 
 	@Override
 	public String toString() {
 		return "RedisManager{" + "stickySession=" + stickySession + ",debug="
-				+ debug + ",serverlist=" + serverlist + ",minConn=" + minConn
-				+ ",maxConn=" + maxConn + ",socketTO=" + socketTO + '}';
+				+ debug + ",serverlist=" + serverlist + ",socketTO=" + socketTO + '}';
 	}
 
 	//---------------------------------------- redis operate
@@ -566,7 +514,7 @@ public class RedisManager extends StandardManager {
 	
 	private void initRedisPoolConfig() {
 		connectionPoolConfig.setMinIdle(5);
-		connectionPoolConfig.setMaxIdle(20);
+		connectionPoolConfig.setMaxIdle(100);
 		connectionPoolConfig.setTestOnBorrow(true);
 		connectionPoolConfig.setTestOnReturn(false);
 		connectionPoolConfig.setTestWhileIdle(false);
@@ -717,6 +665,40 @@ public class RedisManager extends StandardManager {
 
 	public void setJmxNamePrefix(String jmxNamePrefix) {
 		this.connectionPoolConfig.setJmxNamePrefix(jmxNamePrefix);
+	}
+	
+	
+	//------------------------------------------- debug sticky serverlist
+	public boolean getDebug() {
+		return debug;
+	}
+
+	public void setDebug(String debug) {
+		this.debug = Boolean.parseBoolean(debug);
+	}
+
+	public boolean getStickySession() {
+		return this.stickySession;
+	}
+
+	public void setStickySession(String stickySession) {
+		this.stickySession = Boolean.parseBoolean(stickySession);
+	}
+	
+	public String getServerlist() {
+		return serverlist;
+	}
+
+	public void setServerlist(String serverlist) {
+		this.serverlist = serverlist;
+	}
+
+	public String getSocketTO() {
+		return socketTO;
+	}
+
+	public void setSocketTO(String socketTO) {
+		this.socketTO = socketTO;
 	}
 
 }
