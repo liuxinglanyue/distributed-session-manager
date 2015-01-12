@@ -25,8 +25,7 @@ public class SessionHandlerValve extends ValveBase {
 		try {
 			this.getNext().invoke(request, response);
 		} finally {
-			//sessionManager.afterRequest();
-			storeSession(request.getSessionInternal(false));
+			storeSession();
 		}
 	}
 	
@@ -35,22 +34,31 @@ public class SessionHandlerValve extends ValveBase {
 	 * @param session
 	 * @throws IOException
 	 */
-	private void storeSession(Session session) throws IOException {
+	private void storeSession() throws IOException {
+		Session session = sessionManager.currentSession.get();
 		if(null == session) {
 			return;
 		}
-		
-		if(session.isValid()) {
-			log.trace("Request with session completed, saving session " + session.getId());
-			if(null != session.getSession()) {
-				log.trace("HTTP Session present, saving " + session.getId());
-				sessionManager.save(session, sessionManager.getAlwaysSaveAfterRequest());
+		try {
+			if(session.isValid()) {
+				log.trace("Request with session completed, saving session " + session.getId());
+				if(null != session.getSession()) {
+					log.trace("HTTP Session present, saving " + session.getId());
+					sessionManager.save(session, sessionManager.getAlwaysSaveAfterRequest());
+				} else {
+					log.trace("No HTTP Session present, Not saving " + session.getId());
+				}
 			} else {
-				log.trace("No HTTP Session present, Not saving " + session.getId());
+				log.trace("HTTP Session has been invalidated, removing :" + session.getId());
+				sessionManager.remove(session);
 			}
-		} else {
-			log.trace("HTTP Session has been invalidated, removing :" + session.getId());
-			sessionManager.remove(session);
+		} catch(Exception e) {
+			log.error("Error storing/removing session", e);
+		} finally {
+			sessionManager.currentSession.remove();
+			sessionManager.currentSessionId.remove();
+			sessionManager.currentSessionIsPersisted.remove();
+			log.trace("Session removed from ThreadLocal :" + session.getIdInternal());
 		}
 	}
 

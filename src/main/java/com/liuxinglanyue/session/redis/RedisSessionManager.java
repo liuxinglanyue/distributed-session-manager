@@ -22,7 +22,7 @@ import com.liuxinglanyue.session.AbstractSessionManager;
 import com.liuxinglanyue.session.CustomSession;
 
 public class RedisSessionManager extends AbstractSessionManager {
-	private Log log = LogFactory.getLog(RedisSessionManager.class);
+	private final Log log = LogFactory.getLog(RedisSessionManager.class);
 
 	protected String host = "localhost";
 	protected int port = 6379;
