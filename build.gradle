@@ -17,6 +17,8 @@ dependencies {
   compile group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '7.0.27'
   compile group: 'redis.clients', name: 'jedis', version: '2.6.0'
   compile group: 'org.apache.commons', name: 'commons-pool2', version: '2.2'
+  compile 'com.alibaba.rocketmq:rocketmq-client:3.2.2'
+  compile fileTree(dir: 'libs', include: '*.jar')
  
   testCompile group: 'junit', name: 'junit', version: '4.+'
   testCompile 'org.hamcrest:hamcrest-core:1.3'
